@@ -1,36 +1,12 @@
 package it_tests.utils
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
+import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.client.CustomResource
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
-// take a look at https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/pkg/apis/sparkoperator.k8s.io/v1beta1/types.go
-// validate Strings with /it_tests/utils/SparkOperatorEnums.scala and require() - see below
-// remove all @JsonIgnoreProperties and add some if not exists
-// NOTE: if there's "omitempty" pragma in go json parser, use Option - check all "omitempty"
-// add all definitions from types.go
-
-case class CustomObject @JsonCreator() (@JsonProperty("spec") spec: Spec,
+case class CustomObject @JsonCreator() (@JsonProperty("spec") spec: SparkApplicationSpec,
                                         @JsonProperty("status") status: Option[Status]) extends CustomResource
 
-@JsonIgnoreProperties(Array("monitoring"))
-case class Spec @JsonCreator() (@JsonProperty("type") `type`: String,
-                                @JsonProperty("mode") mode: String,
-                                @JsonProperty("image") image: String,
-                                @JsonProperty("imagePullPolicy") imagePullPolicy: String,
-                                @JsonProperty("mainApplicationFile") mainApplicationFile: String,
-                                @JsonProperty("mainClass") mainClass: String,
-                                @JsonProperty("restartPolicy") restartPolicy: RestartPolicy,
-                                @JsonProperty("driver") driver: Driver,
-                                @JsonProperty("executor") executor: Executor,
-                                @JsonProperty("hadoopConf") hadoopConf: Option[Map[String, String]],
-                                @JsonProperty("sparkConf") sparkConf: Option[Map[String, String]],
-                                @JsonProperty("sparkVersion") sparkVersion: String) {
-  // and so on
-  require(DeployMode.contains(mode))
-}
-
-@JsonIgnoreProperties(Array("envSecretKeyRefs"))
 case class Driver @JsonCreator() (@JsonProperty("cores") cores: Double,
                                   @JsonProperty("coreLimit") coreLimit: String,
                                   @JsonProperty("memory") memory: String,
@@ -54,7 +30,7 @@ case class RestartPolicy @JsonCreator() (@JsonProperty("type") `type`: Option[St
 }
 
 
-case class Status @JsonCreator() (@JsonProperty("applicationState") applicationState: ApplicationState,
+case class Status @JsonCreator() (@JsonProperty("applicationState") applicationState: Option[ApplicationState],
                                   @JsonProperty("submissionAttempts") submissionAttempts: Int,
                                   @JsonProperty("lastSubmissionAttemptTime") lastSubmissionAttemptTime: String,
                                   @JsonProperty("terminationTime") terminationTime: Option[String],
@@ -62,47 +38,21 @@ case class Status @JsonCreator() (@JsonProperty("applicationState") applicationS
                                   @JsonProperty("executionAttempts") executionAttempts: Option[Int],
                                   @JsonProperty("driverInfo") driverInfo: DriverInfo)
 
-case class ScheduledSparkApplication @JsonCreator() (@JsonProperty("scheduledSparkApplicationSpec") scheduledSparkApplicationSpec: Spec,
-                                                     @JsonProperty("scheduledSparkApplicationStatus") scheduledSparkApplicationStatus: Option[Status])
-
-case class ScheduledSparkApplicationSpec @JsonCreator() (@JsonProperty("schedule") schedule: String,
-                                                         @JsonProperty("template") template: SparkApplicationSpec,
-                                                         @JsonProperty("suspend") suspend: Boolean,
-                                                         @JsonProperty("concurrencyPolicy") concurrencyPolicy: Option[String],
-                                                         @JsonProperty("successfulRunHistoryLimit") successfulRunHistoryLimit: Option[Int],
-                                                         @JsonProperty("failedRunHistoryLimit") failedRunHistoryLimit: Option[Int]) {
-  require(ConcurrencyPolicy.contains(concurrencyPolicy.get))
-}
-
-case class ScheduledSparkApplicationStatus @JsonCreator() (@JsonProperty("lastRunName") lastRunName: String,
-                                                           @JsonProperty("pastSuccessfulRunNames") pastSuccessfulRunNames: Option[Array[String]],
-                                                           @JsonProperty("pastFailedRunNames") pastFailedRunNames: Option[Array[String]],
-                                                           @JsonProperty("scheduleState") scheduleState: Option[String],
-                                                           @JsonProperty("reason") reason: Option[String]) {
-  require(ScheduleState.contains(scheduleState.get))
-}
-
-case class ScheduledSparkApplicationList @JsonCreator() (@JsonProperty("items") items: Option[Array[ScheduledSparkApplication]])
-
-
-case class SparkApplication @JsonCreator() (@JsonProperty("sparkApplicationSpec") sparkApplicationSpec: Spec,
-                                            @JsonProperty("scheduledSparkApplicationStatus") scheduledSparkApplicationStatus: Option[SparkApplicationSpec])
-
 case class SparkApplicationSpec @JsonCreator() (@JsonProperty("type") `type`: String,
                                                 @JsonProperty("sparkVersion") sparkVersion: String,
                                                 @JsonProperty("mode") mode: Option[String],
                                                 @JsonProperty("image") image: Option[String],
                                                 @JsonProperty("initContainerImage") initContainerImage: Option[String],
                                                 @JsonProperty("imagePullPolicy") imagePullPolicy: Option[String],
-                                                @JsonProperty("imagePullSecrets") imagePullSecrets: Option[Array[String]],
+                                                @JsonProperty("imagePullSecrets") imagePullSecrets: Option[List[String]],
                                                 @JsonProperty("mainClass") mainClass: Option[String],
                                                 @JsonProperty("mainApplicationFile") mainApplicationFile: String,
-                                                @JsonProperty("arguments") arguments: Option[Array[String]],
+                                                @JsonProperty("arguments") arguments: Option[List[String]],
                                                 @JsonProperty("sparkConf") sparkConf: Option[Map[String,String]],
                                                 @JsonProperty("hadoopConf") hadoopConf: Option[Map[String,String]],
                                                 @JsonProperty("sparkConfigMap") sparkConfigMap: Option[String],
                                                 @JsonProperty("hadoopConfigMap") hadoopConfigMap: Option[String],
-//                                                @JsonProperty("volumes") volumes: Option[Volume],
+                                                @JsonProperty("volumes") volumes: Option[Volume],
                                                 @JsonProperty("driver") driver: DriverSpec,
                                                 @JsonProperty("executor") executor: ExecutorSpec,
                                                 @JsonProperty("deps") deps: Dependencies,
@@ -122,53 +72,53 @@ case class ApplicationState @JsonCreator() (@JsonProperty("state") state: String
   require(ApplicationStateType.contains(state))
 }
 
-case class SparkApplicationStatus @JsonCreator() (@JsonProperty("sparkApplicationId") sparkApplicationId: Option[String],
-                                                  @JsonProperty("submissionID") submissionID: Option[String],
-                                                  @JsonProperty("driverInfo") driverInfo: DriverInfo,
-                                                  @JsonProperty("appState") app: Option[ApplicationState],
-                                                  @JsonProperty("executorState") executorState: Option[Map[String,String]],
-                                                  @JsonProperty("executionAttempts") executionAttempts: Option[Int],
-                                                  @JsonProperty("submissionAttempts") submissionAttempts: Option[Int]){
-
-  executorState
-    .get
-    .valuesIterator
-    .foreach(value =>
-      require(ExecutorState.contains(value))
-    )
-}
-
-case class SparkApplicationList @JsonCreator() (@JsonProperty("items") items: Option[Array[SparkApplication]])
-
-case class Dependencies @JsonCreator() (@JsonProperty("jars") jars: Option[Array[String]],
-                                        @JsonProperty("files") files: Option[Array[String]],
-                                        @JsonProperty("pyFiles") pyFiles: Option[Array[String]],
+case class Dependencies @JsonCreator() (@JsonProperty("jars") jars: Option[List[String]],
+                                        @JsonProperty("files") files: Option[List[String]],
+                                        @JsonProperty("pyFiles") pyFiles: Option[List[String]],
                                         @JsonProperty("jarsDownloadDir") jarsDownloadDir: Option[String],
                                         @JsonProperty("filesDownloadDir") filesDownloadDir: Option[String],
                                         @JsonProperty("downloadTimeout") downloadTimeout: Option[Int],
                                         @JsonProperty("maxSimultaneousDownloads") maxSimultaneousDownloads: Option[Int])
 
-case class SparkPodSpec @JsonCreator() (@JsonProperty("cores") cores: Option[Float],
-                                        @JsonProperty("coreLimit") coreLimit: Option[String],
-                                        @JsonProperty("memory") memory: Option[String],
-                                        @JsonProperty("memoryOverhead") memoryOverhead: Option[String],
-                                        @JsonProperty("image") image: Option[String],
-                                        @JsonProperty("configMaps") configMaps: Option[Array[NamePath]],
-                                        @JsonProperty("secrets") secrets: Option[Array[SecretInfo]],
-                                        @JsonProperty("envVars") envVars: Option[Map[String,String]],
-                                        @JsonProperty("envSecretKeyRefs") envSecretKeyRefs: Option[Map[String,String]],
-                                        @JsonProperty("labels") labels: Option[Map[String,String]],
-                                        @JsonProperty("annotations") annotations: Option[Map[String,String]])
+case class DriverSpec @JsonCreator()  (@JsonProperty("cores") cores: Option[Float],
+                                       @JsonProperty("coreLimit") coreLimit: Option[String],
+                                       @JsonProperty("memory") memory: Option[String],
+                                       @JsonProperty("memoryOverhead") memoryOverhead: Option[String],
+                                       @JsonProperty("image") image: Option[String],
+                                       @JsonProperty("configMaps") configMaps: Option[List[NamePath]],
+                                       @JsonProperty("secrets") secrets: Option[List[SecretInfo]],
+                                       @JsonProperty("envVars") envVars: Option[Map[String,String]],
+                                       @JsonProperty("envSecretKeyRefs") envSecretKeyRefs: Option[Map[String,Any]],
+                                       @JsonProperty("labels") labels: Option[Map[String,String]],
+                                       @JsonProperty("annotations") annotations: Option[Map[String,String]],
+                                       @JsonProperty("volumeMounts") volumeMounts: Option[VolumeMount],
+                                       @JsonProperty("affinity") affinity: Option[Affinity],
+                                       @JsonProperty("tolerations") tolerations: Option[List[Toleration]],
+                                       @JsonProperty("securityContext") securityContext: Option[PodSecurityContext],
+                                       @JsonProperty("podName") podName: Option[String],
+                                       @JsonProperty("serviceAccount") serviceAccount: Option[String],
+                                       @JsonProperty("javaOptions") javaOptions: Option[String])
 
-case class DriverSpec @JsonCreator() (@JsonProperty("podName") podName: Option[String],
-//                                        @JsonProperty("sparkPodSpec") sparkPodSpec: Option[ApplicationState],
-                                        @JsonProperty("serviceAccount") serviceAccount: Option[String],
-                                        @JsonProperty("javaOptions") javaOptions: Option[String])
-
-case class ExecutorSpec @JsonCreator() (@JsonProperty("instances") instances: Option[Int],
-//                                        @JsonProperty("sparkPodSpec") sparkPodSpec: Option[ApplicationState],
-                                        @JsonProperty("coreRequest") coreRequest: Option[String],
-                                        @JsonProperty("javaOptions") javaOptions: Option[String])
+case class ExecutorSpec @JsonCreator()  (@JsonProperty("cores") cores: Option[Float],
+                                         @JsonProperty("coreLimit") coreLimit: Option[String],
+                                         @JsonProperty("memory") memory: Option[String],
+                                         @JsonProperty("memoryOverhead") memoryOverhead: Option[String],
+                                         @JsonProperty("image") image: Option[String],
+                                         @JsonProperty("configMaps") configMaps: Option[List[NamePath]],
+                                         @JsonProperty("secrets") secrets: Option[List[SecretInfo]],
+                                         @JsonProperty("envVars") envVars: Option[Map[String,String]],
+                                         @JsonProperty("envSecretKeyRefs") envSecretKeyRefs: Option[Map[String,String]],
+                                         @JsonProperty("labels") labels: Option[Map[String,String]],
+                                         @JsonProperty("annotations") annotations: Option[Map[String,String]],
+                                         @JsonProperty("volumeMounts") volumeMounts: Option[VolumeMount],
+                                         @JsonProperty("affinity") affinity: Option[Affinity],
+                                         @JsonProperty("tolerations") tolerations: Option[List[Toleration]],
+                                         @JsonProperty("securityContext") securityContext: Option[PodSecurityContext],
+                                         @JsonProperty("podName") podName: Option[String],
+                                         @JsonProperty("serviceAccount") serviceAccount: Option[String],
+                                         @JsonProperty("instances") instances: Option[Int],
+                                         @JsonProperty("coreRequest") coreRequest: Option[String],
+                                         @JsonProperty("javaOptions") javaOptions: Option[String])
 
 case class NamePath @JsonCreator() (@JsonProperty("name") name: String,
                                     @JsonProperty("path") path: String)

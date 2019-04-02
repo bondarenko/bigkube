@@ -1,6 +1,10 @@
 package it_tests.utils
 
-import java.io.{File, FileInputStream}
+import java.io.ByteArrayInputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+
 import java.util.concurrent.TimeUnit
 
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
@@ -21,7 +25,6 @@ class SparkController(crdNamespace: String, resourceName: String) {
       pprint.pprintln(OperationSupport.YAML_MAPPER.readValue(convertYamlToJson(resourceName), classOf[CustomObject]).spec)
     }
   }
-
 
   ScalaSupportOperationHook.log()
 
@@ -44,7 +47,9 @@ class SparkController(crdNamespace: String, resourceName: String) {
     println("Spark CRD deleted")
   }
 
-  private def convertYamlToJson(resourceName: String): FileInputStream = {
-    new FileInputStream(new File(resourceName))
+  private def convertYamlToJson(resourceName: String): ByteArrayInputStream = {
+    val path: Path = Paths.get(resourceName)
+    val bytes = Files.readAllBytes(path)
+    new ByteArrayInputStream(bytes)
   }
 }

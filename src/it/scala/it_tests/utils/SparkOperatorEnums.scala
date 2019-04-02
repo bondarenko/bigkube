@@ -37,17 +37,6 @@ object SparkApplicationType extends EnumOfStrings {
   val RApplicationType      = Value("R")
 }
 
-object ConcurrencyPolicy extends EnumOfStrings {
-  val ConcurrencyAllow   = Value("Allow")
-  val ConcurrencyForbid   = Value("Forbid")
-  val ConcurrencyReplace   = Value("Replace")
-}
-
-object ScheduleState extends EnumOfStrings {
-  val FailedValidationState = Value("FailedValidation")
-  val ScheduledState        = Value("Scheduled")
-}
-
 object ApplicationStateType extends EnumOfStrings {
   val NewState              = Value("")
   val SubmittedState        = Value("SUBMITTED")
